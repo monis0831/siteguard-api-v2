@@ -1,6 +1,5 @@
 flask
 requests
 beautifulsoup4
-tldextract
 flask-cors
 gunicorn
