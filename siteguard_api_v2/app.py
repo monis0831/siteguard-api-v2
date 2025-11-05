@@ -5,19 +5,17 @@ import requests, re
 from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # enable CORS for extension
 
-# Allow cross-origin requests from the extension and anywhere else
-CORS(app)
-
-# Force headers so the app can be embedded in an iframe (your extension's sandbox page)
+# Ensure responses can be embedded in iframes (for the extension sandbox)
 @app.after_request
 def allow_iframe(resp):
-    # Allow this API to be framed by any origin (needed for the extension sandbox iframe)
-    resp.headers["X-Frame-Options"] = "ALLOWALL"
-    # Allow any site to embed this API in an iframe (extension -> API -> target site)
-    resp.headers["Content-Security-Policy"] = "frame-ancestors *"
-    # Reasonable caching
-    resp.headers["Cache-Control"] = "no-store"
+    # Remove any XFO that might be auto-set
+    if 'X-Frame-Options' in resp.headers:
+        resp.headers.pop('X-Frame-Options', None)
+    # Allow any parent to frame this content
+    resp.headers['Content-Security-Policy'] = "frame-ancestors *"
+    resp.headers['Cache-Control'] = 'no-store'
     return resp
 
 # ----------------- Heuristic Scanner -----------------
@@ -186,10 +184,11 @@ def sandbox_proxy():
     out = str(soup)
 
     resp = Response(out, status=200, mimetype=(content_type or "text/html").split(";")[0])
-    # Re-assert the same iframe-friendly headers for this response too
-    resp.headers["X-Frame-Options"] = "ALLOWALL"
-    resp.headers["Content-Security-Policy"] = "frame-ancestors *"
-    resp.headers["Cache-Control"] = "no-store"
+    # Clean/override headers for iframe embedding
+    if 'X-Frame-Options' in resp.headers:
+        resp.headers.pop('X-Frame-Options', None)
+    resp.headers['Content-Security-Policy'] = "frame-ancestors *"
+    resp.headers['Cache-Control'] = "no-store"
     return resp
 
 @app.route("/")
